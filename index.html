@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VibeSpace - Real-Time Group Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+      .chat-bg-pattern {
+        background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+        background-repeat: repeat;
+      }
+      .hide-scroll::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+      .msg-bubble {
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+      }
+      #customMenu,
+      #themeMenu {
+        display: none;
+        position: fixed;
+        z-index: 100;
+      }
+
+      input::-ms-reveal,
+      input::-ms-clear {
+        display: none !important;
+      }
+      input::-webkit-contacts-auto-fill-button,
+      input::-webkit-credentials-auto-fill-button {
+        position: absolute;
+        right: 40px;
+      }
+    </style>
+  </head>
+  <body
+    id="appBody"
+    class="h-screen flex items-center justify-center p-2 font-sans overflow-hidden transition-colors duration-300"
+    onclick="closeAllMenus()"
+  >
+    <div
+      id="loginScreen"
+      class="w-full max-w-md border p-8 rounded-3xl shadow-2xl transition-all duration-300 relative flex flex-col justify-between"
+    >
+      <div>
+        <div class="text-center mb-5">
+          <h1
+            id="loginBrand"
+            class="text-3xl font-black tracking-tight transition-colors"
+          >
+            VibeSpace
+          </h1>
+          <p
+            id="loginSlogan"
+            class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1"
+          >
+            Your Private Room, Your Vibe
+          </p>
+
+          <div
+            id="loginThemeControls"
+            class="flex items-center justify-center gap-3 mt-4"
+          >
+            <button
+              onclick="openThemeMenu(event)"
+              class="w-8 h-8 text-sm flex items-center justify-center rounded-full transition-all shadow-md hover:scale-105 border"
+              id="globalThemeBtn"
+              title="Ubah Tema Warna"
+            >
+              🎨
+            </button>
+            <button
+              id="modeToggleBtn"
+              onclick="toggleDarkMode(event)"
+              class="w-8 h-8 text-sm flex items-center justify-center rounded-full transition-all shadow-md hover:scale-105 border"
+              title="Ubah Mode Layar"
+            >
+              🌙
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="loginTabs"
+          class="flex p-1 rounded-xl border mb-4 text-xs font-bold transition-colors"
+        >
+          <button
+            id="tabJoin"
+            onclick="setLoginMode('join')"
+            class="flex-1 py-2 rounded-lg text-white transition-all"
+          >
+            GABUNG ROOM
+          </button>
+          <button
+            id="tabCreate"
+            onclick="setLoginMode('create')"
+            class="flex-1 py-2 rounded-lg transition-all"
+          >
+            BUAT ROOM BARU
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <input
+            type="text"
+            id="nameInput"
+            class="w-full p-4 border rounded-2xl outline-none placeholder-slate-500 transition-colors"
+            placeholder="Nama Anda"
+          />
+          <input
+            type="text"
+            id="roomInput"
+            class="w-full p-4 border rounded-2xl outline-none placeholder-slate-500 transition-colors"
+            placeholder="ID Ruangan yang Dituju"
+          />
+
+          <div
+            id="passwordWrapper"
+            class="w-full border rounded-2xl flex items-center pr-4 shadow-sm transition-colors duration-300"
+          >
+            <input
+              type="password"
+              id="passwordInput"
+              class="w-full p-4 bg-transparent outline-none placeholder-slate-500 transition-colors rounded-2xl"
+              placeholder="Masukkan Password Ruangan"
+            />
+            <button
+              id="togglePasswordBtn"
+              onclick="togglePasswordVisibility(event)"
+              class="text-slate-400 hover:text-slate-200 transition-colors outline-none pl-4 flex items-center justify-center"
+              title="Lihat Password"
+            >
+              <svg
+                id="eyeShowIcon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.177Z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                />
+              </svg>
+              <svg
+                id="eyeHideIcon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5 hidden"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 1-4.243-4.243m4.242 4.242L9.88 9.88"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <button
+            id="loginBtn"
+            onclick="joinChat()"
+            class="w-full text-white p-4 rounded-2xl font-bold hover:opacity-90 active:scale-95 uppercase transition-all shadow-lg tracking-wider mb-2"
+          >
+            Masuk Obrolan
+          </button>
+        </div>
+      </div>
+
+      <div class="text-center mt-5 w-full pointer-events-none select-none">
+        <p
+          id="loginFooterText"
+          class="text-[9px] tracking-widest uppercase font-medium transition-colors duration-300"
+        >
+          &copy; 2026 VibeSpace - Developed by Mahmuda
+        </p>
+      </div>
+    </div>
+
+    <div
+      id="customMenu"
+      class="shadow-2xl rounded-2xl overflow-hidden border w-40 transition-colors duration-200"
+    >
+      <button
+        id="editBtn"
+        onclick="triggerEdit()"
+        class="w-full text-left px-4 py-3 text-sm flex items-center gap-2 border-b"
+      >
+        <span>✏️</span> Edit
+      </button>
+      <button
+        id="deleteBtn"
+        onclick="triggerDelete()"
+        class="w-full text-left px-4 py-3 text-sm flex items-center gap-2 border-b"
+      >
+        <span>🗑</span> Hapus
+      </button>
+      <button
+        id="cancelBtn"
+        onclick="closeMenu()"
+        class="w-full text-left px-4 py-3 text-sm flex items-center gap-2"
+      >
+        <span>✖️</span> Batal
+      </button>
+    </div>
+
+    <div
+      id="themeMenu"
+      class="shadow-2xl rounded-2xl overflow-hidden border w-44 p-2 space-y-1 transition-colors duration-200"
+    >
+      <p
+        id="themeMenuTitle"
+        class="text-[10px] uppercase font-bold px-2 py-1 tracking-wider"
+      >
+        Pilih Tema Warna
+      </p>
+      <button
+        id="themeTealBtn"
+        onclick="changeTheme('teal')"
+        class="w-full text-left px-3 py-2 text-xs rounded-xl flex items-center gap-2"
+      >
+        <span class="w-3 h-3 rounded-full bg-teal-600"></span> Classic Teal
+      </button>
+      <button
+        id="themeVioletBtn"
+        onclick="changeTheme('violet')"
+        class="w-full text-left px-3 py-2 text-xs rounded-xl flex items-center gap-2"
+      >
+        <span class="w-3 h-3 rounded-full bg-purple-600"></span> Cyber Violet
+      </button>
+      <button
+        id="themeSlateBtn"
+        onclick="changeTheme('slate')"
+        class="w-full text-left px-3 py-2 text-xs rounded-xl flex items-center gap-2"
+      >
+        <span class="w-3 h-3 rounded-full bg-slate-700"></span> Elegant Slate
+      </button>
+    </div>
+
+    <div
+      id="chatScreen"
+      class="hidden w-full max-w-md h-[95vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl relative border transition-colors duration-300"
+    >
+      <div
+        id="chatHeader"
+        class="p-4 flex justify-between items-center z-20 shadow-md border-b transition-colors duration-300"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            id="avatar"
+            class="w-10 h-10 rounded-full flex items-center justify-center font-bold border text-xl uppercase italic transition-all duration-300"
+          >
+            ?
+          </div>
+          <div>
+            <h1
+              id="userNameDisplay"
+              class="font-black text-sm leading-none alignment transition-colors duration-300"
+            >
+              User
+            </h1>
+            <p
+              id="status"
+              class="text-[10px] opacity-90 mt-1 italic font-semibold uppercase tracking-widest transition-colors duration-300"
+            >
+              ROOM: -
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="chatThemeBtn"
+            onclick="openThemeMenu(event)"
+            class="w-8 h-8 text-xs flex items-center justify-center rounded-full transition-all border shadow-md hover:scale-105"
+            title="Ubah Tema"
+          >
+            🎨
+          </button>
+          <button
+            id="roomModeToggleBtn"
+            onclick="toggleDarkMode(event)"
+            class="w-8 h-8 text-xs flex items-center justify-center rounded-full transition-all border shadow-md hover:scale-105"
+            title="Ubah Mode Layar"
+          >
+            🌙
+          </button>
+          <button
+            id="toggleBtn"
+            onclick="toggleSignal()"
+            class="w-8 h-8 rounded-full font-bold text-lg flex items-center justify-center transition-all border shadow-md hover:scale-105"
+          >
+            +
+          </button>
+          <button
+            id="exitBtn"
+            onclick="confirmReset()"
+            class="p-2 border rounded-full text-[10px] font-bold px-3 uppercase transition-colors"
+          >
+            Keluar
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="signalArea"
+        class="absolute inset-x-0 top-[72px] p-4 z-10 shadow-xl border-b transition-colors duration-300"
+      >
+        <div
+          id="signalText"
+          class="text-center p-3 rounded-xl border border-dashed text-[11px] transition-colors duration-300"
+        >
+          Memuat data ruangan...
+        </div>
+      </div>
+
+      <div
+        id="chatBox"
+        class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 chat-bg-pattern hide-scroll pt-32 transition-colors duration-300"
+      ></div>
+
+      <div
+        id="inputAreaContainer"
+        class="p-4 flex flex-col relative border-t transition-colors duration-300"
+      >
+        <div
+          id="emojiPicker"
+          class="hidden absolute bottom-20 left-4 shadow-2xl rounded-2xl p-3 border grid grid-cols-6 gap-3 z-30 select-none"
+        ></div>
+
+        <div class="flex items-center gap-3">
+          <div
+            id="inputWrapper"
+            class="flex-1 border rounded-2xl flex items-center px-3 shadow-inner transition-colors duration-300"
+          >
+            <button
+              onclick="toggleEmojiPicker(event)"
+              class="text-slate-400 hover:text-[#a78bfa] pr-2 text-xl outline-none transition-colors"
+            >
+              😊
+            </button>
+            <input
+              type="text"
+              id="msgInp"
+              onkeydown="handleEnter(event)"
+              class="w-full py-3 outline-none text-sm bg-transparent disabled:bg-transparent placeholder-slate-500"
+              placeholder="Ketik pesan..."
+            />
+          </div>
+
+          <button
+            id="sendBtn"
+            onclick="sendTxt()"
+            class="p-3 rounded-2xl shadow-md active:scale-90 hover:opacity-90 transition-all text-white"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="text-center pt-2 pb-4 w-full pointer-events-none select-none flex items-center justify-center"
+      >
+        <p
+          id="chatFooterText"
+          class="text-[9px] tracking-widest uppercase font-medium transition-colors duration-300"
+        >
+          &copy; 2026 VibeSpace - Developed by Mahmuda
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyC7bYKe4pdDsvpo07IpbLvHbVeI62GjgM4",
+        authDomain: "realtime-database-f4102.firebaseapp.com",
+        databaseURL:
+          "https://realtime-database-f4102-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "realtime-database-f4102",
+        storageBucket: "realtime-database-f4102.firebasestorage.app",
+        messagingSenderId: "433163571380",
+        appId: "1:433163571380:web:ad65f64f7b5f892c5d07e1",
+        measurementId: "G-6P2XERK9QL",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+
+      let myName, roomID, roomRef, roomPass, userPresenceRef;
+      let editingId = null;
+      let selectedMsgId = null;
+      let selectedMsgText = "";
+
+      let isDark = localStorage.getItem("chatIsDark") !== "false";
+      let activeTheme = localStorage.getItem("chatActiveTheme") || "slate";
+      let currentLoginMode = "join";
+
+      const themeColors = {
+        dark: {
+          slate: {
+            bg: "#0f172a",
+            blend: "overlay",
+            card: "#1e293b",
+            accent: "#6366f1",
+            text: "#818cf8",
+            inpBg: "#0f172a",
+            inpBorder: "#334155",
+            inpText: "#ffffff",
+            sigBg: "#1e293b",
+            sigTxt: "#94a3b8",
+            border: "#334155",
+            tabBg: "#0f172a",
+            bubbleMe: "#312e81",
+            bubbleMeText: "#f8fafc",
+            bubbleOther: "#1e293b",
+            bubbleOtherText: "#cbd5e1",
+            btnBg: "#131c2e",
+            btnBorder: "#334155",
+            footerTxt: "#475569",
+          },
+          violet: {
+            bg: "#1e1b4b",
+            blend: "overlay",
+            card: "#2e2a72",
+            accent: "#a855f7",
+            text: "#cbd5e1",
+            inpBg: "#1e1b4b",
+            inpBorder: "#4338ca",
+            inpText: "#ffffff",
+            sigBg: "#1e1b4b",
+            sigTxt: "#cbd5e1",
+            border: "#4338ca",
+            tabBg: "#1e1b4b",
+            bubbleMe: "#4c1d95",
+            bubbleMeText: "#f8fafc",
+            bubbleOther: "#2e2a72",
+            bubbleOtherText: "#cbd5e1",
+            btnBg: "#16143c",
+            btnBorder: "#4338ca",
+            footerTxt: "#4338ca",
+          },
+          teal: {
+            bg: "#042f2e",
+            blend: "overlay",
+            card: "#115e59",
+            accent: "#0d9488",
+            text: "#5eead4",
+            inpBg: "#042f2e",
+            inpBorder: "#134e4a",
+            inpText: "#ffffff",
+            sigBg: "#042f2e",
+            sigTxt: "#99f6e4",
+            border: "#134e4a",
+            tabBg: "#042f2e",
+            bubbleMe: "#134e4a",
+            bubbleMeText: "#f8fafc",
+            bubbleOther: "#115e59",
+            bubbleOtherText: "#99f6e4",
+            btnBg: "#021f1e",
+            btnBorder: "#134e4a",
+            footerTxt: "#115e59",
+          },
+        },
+        light: {
+          slate: {
+            bg: "#f1f5f9",
+            blend: "multiply",
+            card: "#ffffff",
+            accent: "#4f46e5",
+            text: "#4f46e5",
+            inpBg: "#f8fafc",
+            inpBorder: "#cbd5e1",
+            inpText: "#0f172a",
+            sigBg: "#f8fafc",
+            sigTxt: "#334155",
+            border: "#e2e8f0",
+            tabBg: "#f1f5f9",
+            bubbleMe: "#e0e7ff",
+            bubbleMeText: "#1e1b4b",
+            bubbleOther: "#ffffff",
+            bubbleOtherText: "#334155",
+            btnBg: "#ffffff",
+            btnBorder: "#cbd5e1",
+            footerTxt: "#94a3b8",
+          },
+          violet: {
+            bg: "#f5f3ff",
+            blend: "multiply",
+            card: "#ffffff",
+            accent: "#a855f7",
+            text: "#7c3aed",
+            inpBg: "#faf5ff",
+            inpBorder: "#ddd6fe",
+            inpText: "#1e1b4b",
+            sigBg: "#faf5ff",
+            sigTxt: "#4338ca",
+            border: "#e9d5ff",
+            tabBg: "#f5f3ff",
+            bubbleMe: "#f3e8ff",
+            bubbleMeText: "#3b0764",
+            bubbleOther: "#ffffff",
+            bubbleOtherText: "#4338ca",
+            btnBg: "#ffffff",
+            btnBorder: "#ddd6fe",
+            footerTxt: "#cbd5e1",
+          },
+          teal: {
+            bg: "#f0fdfa",
+            blend: "multiply",
+            card: "#ffffff",
+            accent: "#0d9488",
+            text: "#0d9488",
+            inpBg: "#f0fdfa",
+            inpBorder: "#99f6e4",
+            inpText: "#042f2e",
+            sigBg: "#f0fdfa",
+            sigTxt: "#115e59",
+            border: "#ccfbf1",
+            tabBg: "#f0fdfa",
+            bubbleMe: "#ccfbf1",
+            bubbleMeText: "#042f2e",
+            bubbleOther: "#ffffff",
+            bubbleOtherText: "#115e59",
+            btnBg: "#ffffff",
+            btnBorder: "#99f6e4",
+            footerTxt: "#99f6e4",
+          },
+        },
+      };
+
+      const emojiList = [
+        "😂",
+        "👍",
+        "🔥",
+        "❤️",
+        "🙏",
+        "✨",
+        "🤣",
+        "🥰",
+        "😎",
+        "😭",
+        "👏",
+        "💯",
+        "🚀",
+        "🥳",
+        "🎉",
+        "💡",
+      ];
+
+      function togglePasswordVisibility(e) {
+        e.stopPropagation();
+        const passwordInput = document.getElementById("passwordInput");
+        const showIcon = document.getElementById("eyeShowIcon");
+        const hideIcon = document.getElementById("eyeHideIcon");
+        const toggleBtn = document.getElementById("togglePasswordBtn");
+
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+          showIcon.classList.add("hidden");
+          hideIcon.classList.remove("hidden");
+          toggleBtn.title = "Sembunyikan Password";
+        } else {
+          passwordInput.type = "password";
+          showIcon.classList.remove("hidden");
+          hideIcon.classList.add("hidden");
+          toggleBtn.title = "Lihat Password";
+        }
+      }
+
+      function renderEmojiPicker() {
+        const picker = document.getElementById("emojiPicker");
+        picker.innerHTML = "";
+        emojiList.forEach((emoji) => {
+          const span = document.createElement("span");
+          span.innerText = emoji;
+          span.className =
+            "cursor-pointer hover:scale-125 text-xl transition-transform";
+          span.onclick = (event) => insertEmoji(emoji, event);
+          picker.appendChild(span);
+        });
+      }
+
+      function handleEnter(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendTxt();
+        }
+      }
+
+      function toggleEmojiPicker(e) {
+        e.stopPropagation();
+        document.getElementById("emojiPicker").classList.toggle("hidden");
+      }
+
+      function insertEmoji(emoji, e) {
+        e.stopPropagation();
+        const inp = document.getElementById("msgInp");
+        inp.value += emoji;
+        inp.focus();
+      }
+
+      function openThemeMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById("themeMenu");
+        menu.style.display = "block";
+        menu.style.left = e.pageX - 80 + "px";
+        menu.style.top = e.pageY + 20 + "px";
+      }
+
+      function setLoginMode(mode) {
+        currentLoginMode = mode;
+        const tabJoin = document.getElementById("tabJoin");
+        const tabCreate = document.getElementById("tabCreate");
+        const roomInp = document.getElementById("roomInput");
+        const passInp = document.getElementById("passwordInput");
+        const loginBtn = document.getElementById("loginBtn");
+
+        const themeMode = isDark ? "dark" : "light";
+        const colors = themeColors[themeMode][activeTheme];
+
+        if (mode === "create") {
+          tabCreate.className =
+            "flex-1 py-2 rounded-lg text-white transition-all shadow-sm";
+          tabCreate.style.backgroundColor = colors.accent;
+          tabJoin.className = `flex-1 py-2 rounded-lg transition-all bg-transparent ${isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800"}`;
+          tabJoin.style.backgroundColor = "transparent";
+
+          roomInp.placeholder = "Buat ID Ruangan Baru (Bebas)";
+          passInp.placeholder = "Buat Password Ruangan Baru";
+          loginBtn.innerText = "Buat & Masuk Room";
+        } else {
+          tabJoin.className =
+            "flex-1 py-2 rounded-lg text-white transition-all shadow-sm";
+          tabJoin.style.backgroundColor = colors.accent;
+          tabCreate.className = `flex-1 py-2 rounded-lg transition-all bg-transparent ${isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800"}`;
+          tabCreate.style.backgroundColor = "transparent";
+
+          roomInp.placeholder = "ID Ruangan yang Dituju";
+          passInp.placeholder = "Masukkan Password Ruangan";
+          loginBtn.innerText = "Masuk Obrolan";
+        }
+      }
+
+      function applyGlobalTheme() {
+        const themeMode = isDark ? "dark" : "light";
+        const colors = themeColors[themeMode][activeTheme];
+
+        document.getElementById("modeToggleBtn").innerText = isDark
+          ? "🌙"
+          : "☀️";
+        document.getElementById("roomModeToggleBtn").innerText = isDark
+          ? "🌙"
+          : "☀️";
+
+        document.getElementById("appBody").style.backgroundColor = colors.bg;
+
+        const cBox = document.getElementById("chatBox");
+        cBox.style.backgroundColor = colors.bg;
+        cBox.style.backgroundBlendMode = colors.blend;
+
+        const loginCard = document.getElementById("loginScreen");
+        loginCard.style.backgroundColor = colors.card;
+        loginCard.style.borderColor = colors.border;
+        document.getElementById("loginBrand").style.color = colors.text;
+        document.getElementById("loginBtn").style.backgroundColor =
+          colors.accent;
+
+        const loginTabsContainer = document.getElementById("loginTabs");
+        loginTabsContainer.style.backgroundColor = colors.tabBg;
+        loginTabsContainer.style.borderColor = colors.border;
+
+        setLoginMode(currentLoginMode);
+
+        const inps = [
+          document.getElementById("nameInput"),
+          document.getElementById("roomInput"),
+        ];
+        inps.forEach((inputEl) => {
+          inputEl.style.backgroundColor = colors.inpBg;
+          inputEl.style.borderColor = colors.border;
+          inputEl.style.color = colors.inpText;
+        });
+
+        const passWrap = document.getElementById("passwordWrapper");
+        passWrap.style.backgroundColor = colors.inpBg;
+        passWrap.style.borderColor = colors.border;
+        document.getElementById("passwordInput").style.color = colors.inpText;
+
+        const sigArea = document.getElementById("signalArea");
+        const sigTxt = document.getElementById("signalText");
+        sigArea.style.backgroundColor = colors.card;
+        sigArea.style.borderColor = colors.border;
+        sigTxt.style.backgroundColor = colors.sigBg;
+        sigTxt.style.color = colors.sigTxt;
+        sigTxt.style.borderColor = colors.border;
+
+        document.getElementById("sendBtn").style.backgroundColor =
+          colors.accent;
+
+        const chatContainer = document.getElementById("chatScreen");
+        const header = document.getElementById("chatHeader");
+        const inputArea = document.getElementById("inputAreaContainer");
+        const inputWrap = document.getElementById("inputWrapper");
+        const inputField = document.getElementById("msgInp");
+
+        chatContainer.style.backgroundColor = colors.bg;
+        chatContainer.style.borderColor = colors.border;
+        header.style.backgroundColor = colors.card;
+        header.style.borderColor = colors.border;
+        inputArea.style.backgroundColor = colors.card;
+        inputArea.style.borderColor = colors.border;
+        inputWrap.style.backgroundColor = colors.inpBg;
+        inputWrap.style.borderColor = colors.border;
+        inputField.style.color = colors.inpText;
+
+        const cMenu = document.getElementById("customMenu");
+        const tMenu = document.getElementById("themeMenu");
+        const ePicker = document.getElementById("emojiPicker");
+
+        cMenu.style.backgroundColor = colors.card;
+        cMenu.style.borderColor = colors.border;
+        tMenu.style.backgroundColor = colors.card;
+        tMenu.style.borderColor = colors.border;
+        ePicker.style.backgroundColor = colors.card;
+        ePicker.style.borderColor = colors.border;
+
+        const globalThemeBtn = document.getElementById("globalThemeBtn");
+        const modeToggleBtn = document.getElementById("modeToggleBtn");
+        const chatThemeBtn = document.getElementById("chatThemeBtn");
+        const roomModeToggleBtn = document.getElementById("roomModeToggleBtn");
+        const toggleBtn = document.getElementById("toggleBtn");
+
+        globalThemeBtn.style.backgroundColor = colors.btnBg;
+        globalThemeBtn.style.borderColor = colors.btnBorder;
+        globalThemeBtn.style.color = isDark ? colors.text : "#475569";
+
+        modeToggleBtn.style.backgroundColor = colors.btnBg;
+        modeToggleBtn.style.borderColor = colors.btnBorder;
+        modeToggleBtn.style.color = isDark ? colors.text : "#475569";
+
+        chatThemeBtn.style.backgroundColor = colors.btnBg;
+        chatThemeBtn.style.borderColor = colors.btnBorder;
+        chatThemeBtn.style.color = isDark ? colors.text : "#475569";
+
+        roomModeToggleBtn.style.backgroundColor = colors.btnBg;
+        roomModeToggleBtn.style.borderColor = colors.btnBorder;
+        roomModeToggleBtn.style.color = isDark ? colors.text : "#475569";
+
+        toggleBtn.style.backgroundColor = colors.btnBg;
+        toggleBtn.style.borderColor = colors.btnBorder;
+        toggleBtn.style.color = isDark ? colors.text : "#475569";
+
+        document.getElementById("exitBtn").className =
+          `p-2 border rounded-full text-[10px] font-bold px-3 uppercase transition-colors ${isDark ? "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20" : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"}`;
+
+        document.getElementById("userNameDisplay").style.color = colors.text;
+        document.getElementById("status").style.color = isDark
+          ? colors.text
+          : "#64748b";
+
+        const avatarEl = document.getElementById("avatar");
+        avatarEl.style.color = colors.text;
+        avatarEl.style.borderColor = colors.text + "4D";
+        avatarEl.style.backgroundColor = colors.text + "1A";
+
+        document.getElementById("themeMenuTitle").style.color = isDark
+          ? "#64748b"
+          : "#94a3b8";
+
+        const menuButtons = [
+          document.getElementById("editBtn"),
+          document.getElementById("deleteBtn"),
+          document.getElementById("cancelBtn"),
+        ];
+        menuButtons.forEach((btn) => {
+          btn.style.borderColor = colors.border;
+        });
+
+        if (isDark) {
+          document.getElementById("editBtn").className =
+            "w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 flex items-center gap-2 border-b";
+          document.getElementById("deleteBtn").className =
+            "w-full text-left px-4 py-3 text-sm hover:bg-red-950/40 text-red-400 flex items-center gap-2 border-b";
+          document.getElementById("cancelBtn").className =
+            "w-full text-left px-4 py-3 text-sm hover:bg-slate-800 text-slate-500 flex items-center gap-2";
+          ["themeTealBtn", "themeVioletBtn", "themeSlateBtn"].forEach((id) => {
+            document.getElementById(id).className =
+              "w-full text-left px-3 py-2 text-xs rounded-xl text-slate-300 hover:bg-slate-800 flex items-center gap-2";
+          });
+        } else {
+          document.getElementById("editBtn").className =
+            "w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2 border-b";
+          document.getElementById("deleteBtn").className =
+            "w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500 flex items-center gap-2 border-b";
+          document.getElementById("cancelBtn").className =
+            "w-full text-left px-4 py-3 text-sm hover:bg-slate-100 text-slate-400 flex items-center gap-2";
+          ["themeTealBtn", "themeVioletBtn", "themeSlateBtn"].forEach((id) => {
+            document.getElementById(id).className =
+              "w-full text-left px-3 py-2 text-xs rounded-xl text-slate-700 hover:bg-slate-100 flex items-center gap-2";
+          });
+        }
+
+        // Sinkronisasi warna footer formal dinamis
+        // Atribusi tekstual formal dengan kontras yang disesuaikan agar tidak tenggelam
+        // Atribusi tekstual formal dengan warna dinamis mengikuti kontras tema aktif
+        const loginFooter = document.getElementById("loginFooterText");
+        const chatFooter = document.getElementById("chatFooterText");
+
+        if (loginFooter) {
+          // Menggunakan warna teks sekunder bawaan tema aktif agar kontrasnya pas dan adaptif
+          loginFooter.style.color = isDark ? colors.sigTxt : "#94a3b8";
+        }
+        if (chatFooter) {
+          // Otomatis terang di mode dark (teal/violet/slate) dan abu-abu proporsional di mode light
+          chatFooter.style.color = isDark ? colors.sigTxt : "#94a3b8";
+        }
+
+        if (roomPass) writeRoomDetailsToSignalUI();
+      }
+
+      function changeTheme(themeName) {
+        activeTheme = themeName;
+        localStorage.setItem("chatActiveTheme", themeName);
+        applyGlobalTheme();
+        document.getElementById("themeMenu").style.display = "none";
+        if (roomRef) refreshChatBubblesOnly();
+      }
+
+      function toggleDarkMode(e) {
+        e.stopPropagation();
+        isDark = !isDark;
+        localStorage.setItem("chatIsDark", isDark);
+        applyGlobalTheme();
+        if (roomRef) refreshChatBubblesOnly();
+      }
+
+      function refreshChatBubblesOnly() {
+        const box = document.getElementById("chatBox");
+        box.innerHTML = "";
+
+        const themeMode = isDark ? "dark" : "light";
+        const colors = themeColors[themeMode][activeTheme];
+
+        if (currentChatSnapshotData) {
+          Object.keys(currentChatSnapshotData).forEach((msgKey) => {
+            const msg = currentChatSnapshotData[msgKey];
+            if (msg && msg.sender && msg.text) {
+              appendMsgUI(
+                msg.sender,
+                msg.text,
+                msg.sender === myName,
+                msgKey,
+                msg.edited,
+              );
+            }
+          });
+          box.scrollTop = box.scrollHeight;
+        }
+      }
+
+      function closeAllMenus() {
+        closeMenu();
+        document.getElementById("emojiPicker").classList.add("hidden");
+        document.getElementById("themeMenu").style.display = "none";
+      }
+
+      function joinChat() {
+        myName = document.getElementById("nameInput").value.trim();
+        roomID = document
+          .getElementById("roomInput")
+          .value.trim()
+          .toLowerCase();
+        roomPass = document.getElementById("passwordInput").value.trim();
+
+        if (!myName || !roomID || !roomPass)
+          return alert("Semua kolom input wajib diisi!");
+
+        if (/[.\#$\[\]]/.test(myName)) {
+          return alert("Nama tidak boleh mengandung karakter . # $ [ ]");
+        }
+
+        const checkRoomRef = database.ref("rooms/" + roomID);
+
+        checkRoomRef.once("value").then((snapshot) => {
+          const roomData = snapshot.val();
+
+          if (currentLoginMode === "create") {
+            if (roomData !== null) {
+              alert(
+                "ID Ruangan sudah terpakai oleh orang lain! Silakan cari ID Ruangan unik yang berbeda.",
+              );
+            } else {
+              checkRoomRef
+                .child("password")
+                .set(roomPass)
+                .then(() => {
+                  checkAndRegisterUser(checkRoomRef);
+                });
+            }
+          } else {
+            if (roomData === null) {
+              alert(
+                "Ruangan tidak ditemukan! Silakan cek kembali ID Ruangan kamu atau buat baru lewat tab 'BUAT ROOM BARU'.",
+              );
+            } else {
+              if (roomData.password === roomPass) {
+                checkAndRegisterUser(checkRoomRef);
+              } else {
+                alert("Password salah! Akses masuk ruangan ditolak.");
+              }
+            }
+          }
+        });
+      }
+
+      function checkAndRegisterUser(targetRoomRef) {
+        const userRef = targetRoomRef.child("users").child(myName);
+
+        userRef.once("value").then((snapshot) => {
+          if (snapshot.exists() && snapshot.val() === true) {
+            alert(
+              `Nama "${myName}" sudah digunakan orang lain di dalam ruangan ini. Silakan gunakan nama lain!`,
+            );
+          } else {
+            userRef.set(true).then(() => {
+              userPresenceRef = userRef;
+              userPresenceRef.onDisconnect().remove();
+              proceedToChat();
+            });
+          }
+        });
+      }
+
+      function writeRoomDetailsToSignalUI() {
+        const themeMode = isDark ? "dark" : "light";
+        const colors = themeColors[themeMode][activeTheme];
+        const innerBoxBg = isDark ? "bg-slate-950" : "bg-slate-100";
+        const textLabelColor = isDark ? "text-slate-400" : "text-slate-700";
+
+        document.getElementById("signalText").innerHTML =
+          `🔒 <b style="color: ${colors.text}">Room Terproteksi Aktif!</b><br>` +
+          `<span class="${textLabelColor}">Bagikan detail ini ke teman kamu agar bisa bergabung:</span><br>` +
+          `<div class="block mt-2 ${innerBoxBg} p-2 rounded-xl border text-left font-mono text-[12px]" style="border-color: ${colors.border}; color: ${colors.inpText}">` +
+          `ID Room : <b>${roomID}</b><br>` +
+          `Password: <b>${roomPass}</b>` +
+          `</div>`;
+      }
+
+      function proceedToChat() {
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("chatScreen").classList.remove("hidden");
+        document.getElementById("avatar").innerText = myName[0];
+        document.getElementById("userNameDisplay").innerText = myName;
+        document.getElementById("status").innerText =
+          "ROOM: " + roomID.toUpperCase();
+
+        writeRoomDetailsToSignalUI();
+        applyGlobalTheme();
+
+        roomRef = database.ref("rooms/" + roomID);
+        listenToChat();
+      }
+
+      let currentChatSnapshotData = null;
+      function listenToChat() {
+        roomRef.child("messages").on("value", (snapshot) => {
+          currentChatSnapshotData = snapshot.val();
+          refreshChatBubblesOnly();
+        });
+      }
+
+      function sendTxt() {
+        const inp = document.getElementById("msgInp");
+        const text = inp.value.trim();
+        if (!text) return;
+
+        if (editingId) {
+          roomRef
+            .child("messages")
+            .child(editingId)
+            .update({ text: text, edited: true });
+          editingId = null;
+          inp.placeholder = "Ketik pesan...";
+        } else {
+          roomRef.child("messages").push({
+            sender: myName,
+            text: text,
+            timestamp: Date.now(),
+            edited: false,
+          });
+        }
+        inp.value = "";
+        document.getElementById("emojiPicker").classList.add("hidden");
+      }
+
+      function openMsgMenu(e, id, text) {
+        e.stopPropagation();
+        selectedMsgId = id;
+        selectedMsgText = text;
+        const menu = document.getElementById("customMenu");
+        menu.style.display = "block";
+        menu.style.left = e.pageX + "px";
+        menu.style.top = e.pageY + "px";
+      }
+
+      function closeMenu() {
+        document.getElementById("customMenu").style.display = "none";
+      }
+
+      function triggerEdit() {
+        editingId = selectedMsgId;
+        document.getElementById("msgInp").value = selectedMsgText;
+        document.getElementById("msgInp").focus();
+        document.getElementById("msgInp").placeholder = "Mode Edit...";
+        closeMenu();
+      }
+
+      function triggerDelete() {
+        if (confirm("Hapus pesan ini dari grup secara permanen?")) {
+          roomRef.child("messages").child(selectedMsgId).remove();
+        }
+        closeMenu();
+      }
+
+      function appendMsgUI(u, t, isMe, id, isEdited) {
+        const box = document.getElementById("chatBox");
+        const div = document.createElement("div");
+        div.id = id;
+
+        const themeMode = isDark ? "dark" : "light";
+        const colors = themeColors[themeMode][activeTheme];
+
+        if (isMe) {
+          div.style.backgroundColor = colors.bubbleMe;
+          div.style.color = colors.bubbleMeText;
+          div.className =
+            "self-end p-3 rounded-2xl rounded-tr-none shadow-sm text-sm max-w-[85%] mb-1 border-l-4 msg-bubble";
+          div.style.borderLeftColor = colors.accent;
+          div.onclick = (e) => openMsgMenu(e, id, t);
+        } else {
+          div.style.backgroundColor = colors.bubbleOther;
+          div.style.color = colors.bubbleOtherText;
+          div.className =
+            "self-start p-3 rounded-2xl rounded-tl-none shadow-sm text-sm max-w-[85%] mb-1 border-l-4";
+          div.style.borderLeftColor = isDark ? "#475569" : "#cbd5e1";
+        }
+        div.style.borderColor = colors.border;
+
+        let nameStyle = `color: ${colors.text}; font-weight: 700;`;
+        let subTxtColor = isDark ? "text-slate-500" : "text-slate-400";
+
+        div.innerHTML = `<b class="text-[10px] block uppercase mb-1 tracking-wider" style="${nameStyle}">${u}</b>
+                             <div class="flex items-end justify-between gap-4">
+                                <p class="msg-text whitespace-pre-wrap">${t}</p>
+                                <div class="flex flex-col items-end">
+                                    <span class="edit-label text-[8px] ${subTxtColor} italic ${isEdited ? "" : "hidden"}">diedit</span>
+                                    ${isMe ? `<span class="text-[10px]" style="color: ${colors.accent}">✓✓</span>` : ""}
+                                </div>
+                             </div>`;
+        box.appendChild(div);
+      }
+
+      function toggleSignal(state = null) {
+        const area = document.getElementById("signalArea");
+        const btn = document.getElementById("toggleBtn");
+        if (state === false || !area.classList.contains("hidden")) {
+          area.classList.add("hidden");
+          btn.innerText = "+";
+        } else {
+          area.classList.remove("hidden");
+          btn.innerText = "−";
+        }
+      }
+
+      function confirmReset() {
+        if (confirm("Keluar dari ruangan?")) {
+          if (userPresenceRef) {
+            userPresenceRef.remove().then(() => {
+              location.reload();
+            });
+          } else {
+            location.reload();
+          }
+        }
+      }
+
+      renderEmojiPicker();
+      applyGlobalTheme();
+    </script>
+  </body>
+</html>
