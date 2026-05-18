@@ -3,11 +3,12 @@
 VibeSpace adalah aplikasi web obrolan grup *real-time* berbasis room privat yang dirancang dengan antarmuka modern, interaktif, dan responsif. Pengguna dapat membuat ruangan obrolan sendiri dengan kata sandi terproteksi atau bergabung ke ruangan yang sudah ada.
 
 <p align="center">
-  <img src="screenshots/login.png" alt="Halaman Login" height="400" />
-  <img src="screenshots/chat.png" alt="Halaman Chat" height="400" />
+  <img src="buatroombaru.png" alt="Halaman Login" height="400" />
+  <img src="gabungroom.png" alt="Halaman Chat" height="400" />
+  <img src="roomchat.png" alt="Halaman Chat" height="400" />
 </p>
 
-👉 **[COBA APLIKASI SEKARANG (LIVE DEMO)](https://USERNAME_KAMU.github.io/vibespace-chat)**
+👉 **[COBA APLIKASI SEKARANG (LIVE DEMO)](https://mahmuda1004.github.io/vibespace-chat)**
 
 ---
 
